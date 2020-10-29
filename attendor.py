@@ -3,9 +3,10 @@
 
 block_schedule = {'8:02': 'class-kirwin-e3','9:27': 'class-kirwin-e1', '10:52': 'apcs', '8:01': 'class-dougherty-e2', '13:11': 'class-dougherty-e1'}
 no_schedule = {}
-endpoints = {'class-kirwin-e3': 'https://hooks.slack.com/services/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', 'class-kirwin-e1': 'https://hooks.slack.com/services/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', 'class-kirwin-e2': 'https://hooks.slack.com/services/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', 'class-dougherty-e1': 'https://hooks.slack.com/services/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', 'class-dougherty-e2': 'https://hooks.slack.com/services/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', 'apcs': 'https://hooks.slack.com/services/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'}
-bsm_robotics_user_token = 'xoxp-312023469652-312023469780-1455886460310-f9f818cbc0951b7591cb431dbe72729b'
-bsm_apcs_user_token = 'xoxp-1151662380019-1151453665074-1463172420290-3740645fe6f74764685d12a8d8bb83a2'
+channels = {'class-kirwin-e1': 'class-kirwin-e1', 'class-kirwin-e2': 'class-kirwin-e2', 'class-kirwin-e3': 'class-kirwin-e3', 'apcs': 'classroom-management', 'class-dougherty-e1': 'class-dougherty-e1', 'class-dougherty-e2': 'class-dougherty-e2'}
+endpoints = {'class-kirwin-e3': 'https://hooks.slack.com/services/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', 'class-kirwin-e1': 'https://hooks.slack.com/services/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', 'class-kirwin-e2': 'https://hooks.slack.com/services/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', 'class-dougherty-e1': 'https://hooks.slack.com/services/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', 'class-dougherty-e2': 'https://hooks.slack.com/services/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', 'apcs': 'https://hooks.slack.com/services/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'}
+bsm_robotics_user_token = 'xoxb-312023469652-1452572658102-gA7HT1LnuCqkJopbv1RVWaaG'
+bsm_apcs_user_token = 'xoxb-1151662380019-1457315696387-wxseYtI9GZ31P3U8hYr0DcB8'
 tokens = {'class-kirwin-e1': bsm_robotics_user_token, 'class-kirwin-e2': bsm_robotics_user_token, 'class-kirwin-e3': bsm_robotics_user_token, 'apcs': bsm_apcs_user_token}
 
 ### Logic
@@ -39,13 +40,14 @@ def check_for_check_time(dt, t, schedule):
   print('check: ' + t + ' ' + str(diff))  
   if((diff < -3600 and diff >= -3610) or (diff < -1800 and diff >= -1810)):
     print("Checking...")
-    check_attendance(dt, t, schedule)
+    check_attendance(t, schedule)
     return(1)
 
-def check_attendance(dt, t, schedule):
+def check_attendance(t, schedule):
   token = tokens.get(schedule.get(t))
-  master_attendance = get_reactions(token, 'master-attendance-' + schedule.get(t) + '-' + t)
-  daily_attendance = get_reactions(token, message_key(dt, t, schedule))
+  channel = get_channel_id(token, channels.get(schedule.get(t)))
+  master_attendance = get_reactions(get_master_attendance_message(token, channel, t))
+  daily_attendance = get_reactions(get_daily_attendance_message(token, channel, t))
   
   missing = []
   for u in master_attendance:
@@ -59,14 +61,30 @@ def check_attendance(dt, t, schedule):
     msg = "Attendance looks good for all " + str(len(master_attendance)) + " students!"
   post_attendance_message(endpoints.get(schedule.get(t)), msg)
 
-def get_reactions(token, query, emoji = '+1'):
-  url = 'https://slack.com/api/search.messages?token=' + token + '&query=' + query
+def get_channel_id(token, channel_name):
+  url = 'https://slack.com/api/conversations.list?token=' + token
   resp = requests.get(url)
-  channel_id = resp.json()['messages']['matches'][0]['channel']['id']
-  message_ts = resp.json()['messages']['matches'][0]['ts']
-  url = 'https://slack.com/api/reactions.get?token=' + token + '&timestamp=' + message_ts + '&channel=' + channel_id
+  channels = resp.json()['channels']
+  return(list(filter(lambda ch: ch['name'] == channel_name, channels))[0]['id'])
+
+def get_master_attendance_message(token, channel, t):
+  url = 'https://slack.com/api/pins.list?token=' + token + '&channel=' + channel
   resp = requests.get(url)
-  message = resp.json()['message']
+  msgs = resp.json()['items']
+  msg = list(filter(lambda m: t in m['message']['text'], msgs))[0]['message']
+  return(msg)
+
+def get_daily_attendance_message(token, channel, t):
+  dt = update_dt(t)
+  minute_before = dt.timestamp() - 60
+  minute_after = dt.timestamp() + 60
+  url = 'https://slack.com/api/conversations.history?token=' + token + '&channel=' + channel + '&oldest=' + str(minute_before) + '&latest=' + str(minute_after)
+  resp = requests.get(url)
+  msgs = resp.json()['messages']
+  msg = list(filter(lambda m: t in m['text'], msgs))[0]
+  return(msg)
+
+def get_reactions(message, emoji = '+1'):
   if 'reactions' in message.keys():
     reactions = message['reactions']
     present_potentials = list(filter(lambda rxn: rxn['name'] == emoji, reactions))
@@ -81,12 +99,15 @@ def get_reactions(token, query, emoji = '+1'):
 def check_schedule():
   schedule = determine_schedule()
   for t in schedule.keys():
-    notification_time = datetime.datetime.now()
-    notification_time = notification_time.replace(hour=int(t.split(':')[0]), minute=int(t.split(':')[1]), second=0)
+    notification_time = update_dt(t)
 
     check_for_notification_time(notification_time, t, schedule)
     check_for_check_time(notification_time, t, schedule)
   return(1)
+
+def update_dt(t):
+    dt = datetime.datetime.now()
+    return(dt.replace(hour=int(t.split(':')[0]), minute=int(t.split(':')[1]), second=0))
 
 def default_schedule():
   return [block_schedule, block_schedule, block_schedule, block_schedule, block_schedule, no_schedule, no_schedule][datetime.datetime.today().weekday()]
