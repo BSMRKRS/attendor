@@ -1,11 +1,11 @@
 ### Definition of default schedules
 ###################################
 
-block_schedule = {'8:02': 'class-kirwin-e3','9:27': 'class-kirwin-e1', '10:52': 'apcs', '8:01': 'class-dougherty-e2', '13:01': 'class-dougherty-e1'}
+block_schedule = {'8:02': 'class-kirwin-e3','9:27': 'class-kirwin-e1', '10:52': 'apcs', '8:01': 'class-dougherty-e2', '13:11': 'class-dougherty-e1'}
 no_schedule = {}
-endpoints = {'class-kirwin-e3': 'https://hooks.slack.com/services/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', 'class-kirwin-e1': 'https://hooks.slack.com/services/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', 'class-kirwin-e2': 'https://hooks.slack.com/services/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', 'class-dougherty-e1': 'https://hooks.slack.com/services/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', 'class-dougherty-e2': 'https://hooks.slack.com/services/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', 'apcs': 'https://hooks.slack.com/services/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'}
-bsm_robotics_user_token = 'xoxp-312023469652-312023469780-1459532284067-26bc23a207ea5caf9fc413ddeedd5292'
-bsm_apcs_user_token = 'xoxp-1151662380019-1151453665074-1464307744564-b29798811bc80b54c559635fdb0fbf21'
+endpoints = {'class-kirwin-e3': 'https://hooks.slack.com/services/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', 'class-kirwin-e1': 'https://hooks.slack.com/services/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', 'class-kirwin-e2': 'https://hooks.slack.com/services/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', 'class-dougherty-e1': 'https://hooks.slack.com/services/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', 'class-dougherty-e2': 'https://hooks.slack.com/services/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', 'apcs': 'https://hooks.slack.com/services/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'}
+bsm_robotics_user_token = 'xoxp-312023469652-312023469780-1455886460310-f9f818cbc0951b7591cb431dbe72729b'
+bsm_apcs_user_token = 'xoxp-1151662380019-1151453665074-1463172420290-3740645fe6f74764685d12a8d8bb83a2'
 tokens = {'class-kirwin-e1': bsm_robotics_user_token, 'class-kirwin-e2': bsm_robotics_user_token, 'class-kirwin-e3': bsm_robotics_user_token, 'apcs': bsm_apcs_user_token}
 
 ### Logic
@@ -44,7 +44,7 @@ def check_for_check_time(dt, t, schedule):
 
 def check_attendance(dt, t, schedule):
   token = tokens.get(schedule.get(t))
-  master_attendance = get_reactions(token, 'master-attendance-' + schedule.get(t))
+  master_attendance = get_reactions(token, 'master-attendance-' + schedule.get(t) + '-' + t)
   daily_attendance = get_reactions(token, message_key(dt, t, schedule))
   
   missing = []
