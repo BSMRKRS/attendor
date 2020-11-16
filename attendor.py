@@ -1,13 +1,12 @@
 ### Definition of default schedules
 ###################################
 
-block_schedule = {'8:02': 'class-kirwin-e3','9:27': 'class-kirwin-e1', '10:52': 'apcs', '8:01': 'class-dougherty-e2', '13:11': 'class-dougherty-e1'}
+import slack_secrets
+from slack_secrets import endpoints
+block_schedule = {'8:01': 'attendance-8am','9:26': 'attendance-925am', '10:51': 'attendance-1050am', '13:11': 'attendance-110pm'}
 no_schedule = {}
-channels = {'class-kirwin-e1': 'class-kirwin-e1', 'class-kirwin-e2': 'class-kirwin-e2', 'class-kirwin-e3': 'class-kirwin-e3', 'apcs': 'classroom-management', 'class-dougherty-e1': 'class-dougherty-e1', 'class-dougherty-e2': 'class-dougherty-e2'}
-endpoints = {'class-kirwin-e3': 'https://hooks.slack.com/services/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', 'class-kirwin-e1': 'https://hooks.slack.com/services/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', 'class-kirwin-e2': 'https://hooks.slack.com/services/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', 'class-dougherty-e1': 'https://hooks.slack.com/services/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', 'class-dougherty-e2': 'https://hooks.slack.com/services/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', 'apcs': 'https://hooks.slack.com/services/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'}
-bsm_robotics_user_token = 'xoxb-312023469652-1452572658102-WsoUjPoGQaptjvkm6OkHVxw4'
-bsm_apcs_user_token = 'xoxb-1151662380019-1457315696387-wPPEWx6vaTuOTN9s7UAV40KU'
-tokens = {'class-kirwin-e1': bsm_robotics_user_token, 'class-kirwin-e2': bsm_robotics_user_token, 'class-kirwin-e3': bsm_robotics_user_token, 'apcs': bsm_apcs_user_token}
+channels = {'attendance-8am': 'attendance-8am', 'attendance-925am': 'attendance-925am', 'attendance-1050am': 'attendance-1050am', 'attendance-110pm': 'attendance-110pm', 'apcs': 'classroom-management'}
+tokens = {'attendance-8am': slack_secrets.bsm_robotics_user_token, 'attendance-925am': slack_secrets.bsm_robotics_user_token, 'attendance-1050am': slack_secrets.bsm_robotics_user_token, 'attendance-110pm': slack_secrets.bsm_robotics_user_token, 'apcs': slack_secrets.bsm_apcs_user_token}
 
 ### Logic
 #########
@@ -86,15 +85,20 @@ def get_master_attendance_message(token, channel, t):
     msg = {}
   return(msg)
 
-def get_daily_attendance_message(token, channel, t):
+def get_daily_attendance_message(token, channel, t, offset = 60):
   dt = update_dt(t)
-  minute_before = dt.timestamp() - 60
-  minute_after = dt.timestamp() + 60
+  minute_before = dt.timestamp() - offset
+  minute_after = dt.timestamp() + offset
   url = 'https://slack.com/api/conversations.history?token=' + token + '&channel=' + channel + '&oldest=' + str(minute_before) + '&latest=' + str(minute_after)
   resp = requests.get(url)
   if('messages' in resp.json().keys()):
     msgs = resp.json()['messages']
-    msg = list(filter(lambda m: t in m['text'], msgs))[0]
+    filtered = list(filter(lambda m: t in m['text'], msgs))
+    if(len(filtered) > 0):
+      msg = filtered[0]
+    else:
+      print(resp.json())
+      msg = {}
   else:
     print(resp.json())
     msg = {}
@@ -113,13 +117,16 @@ def get_reactions(message, emoji = '+1'):
   return(present)
 
 def check_schedule():
-  schedule = determine_schedule()
-  for t in schedule.keys():
-    notification_time = update_dt(t)
+  try:
+    schedule = determine_schedule()
+    for t in schedule.keys():
+      notification_time = update_dt(t)
 
-    check_for_notification_time(notification_time, t, schedule)
-    check_for_check_time(notification_time, t, schedule)
-  return(1)
+      check_for_notification_time(notification_time, t, schedule)
+      check_for_check_time(notification_time, t, schedule)
+    return(1)
+  except Exception as ex:
+    requests.post(slack_secrets.error_endpoint, str(ex))
 
 def update_dt(t):
     dt = datetime.datetime.now()
